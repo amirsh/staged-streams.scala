@@ -20,6 +20,15 @@ import java.io.PrintWriter
  */
 
 trait StagedStreamBenchmarksS extends StagedStream {
+  def flatten (xs : Rep[Array[Array[Int]]]) : Rep[Int] =
+    Stream[Array[Int]](xs)
+      .flatmap(d => Stream[Int](d))
+      .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + z))
+  def flatten3 (xs : Rep[Array[Array[Array[Int]]]]) : Rep[Int] =
+    Stream[Array[Array[Int]]](xs)
+      .flatmap(d => Stream[Array[Int]](d).flatmap(d2 => Stream[Int](d2)))
+      // .flatmap(d => Stream[Array[Int]](d)).flatmap(d2 => Stream[Int](d2))
+      .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + z))
   def sum (xs : Rep[Array[Int]]) : Rep[Int] =
     Stream[Int](xs)
       .fold(unit(0), ((a : Rep[Int]) => (b : Rep[Int]) => a + b))
@@ -107,6 +116,8 @@ trait StagedStreamBenchmarksT extends StagedStreamBenchmarksS
     with StructExp
     with ScalaCompileMultiParams {
 
+  val flatten : (Array[Array[Int]] => Int)
+  val flatten3 : (Array[Array[Array[Int]]] => Int)
   val sum : (Array[Int] => Int)
   val sumOfSquares : (Array[Int] => Int)
   val sumOfSquaresEven : (Array[Int] => Int)
@@ -126,6 +137,8 @@ trait StagedStreamBenchmarksT extends StagedStreamBenchmarksS
 @State(Scope.Thread)
 @Fork(1)
 class S {
+  var NNN : Int = 100
+  var NN : Int = 1000
   var N : Int = 100000000
   // var Limit : Int = (Int)(N*0.2)
   var v : Array[Int] = _
@@ -133,6 +146,8 @@ class S {
   var vLo : Array[Int] = _
   var vFaZ : Array[Int] = _
   var vZaF : Array[Int] = _
+  var nestedArr : Array[Array[Int]] = _
+  var nestedArr3 : Array[Array[Array[Int]]] = _
   var staged : StagedStreamBenchmarksT = _
 
   @Setup
@@ -142,6 +157,13 @@ class S {
     vLo        = Array.tabulate(10)(i => i.toInt % 10)
     vFaZ       = Array.tabulate(10000)(_.toInt)
     vZaF       = Array.tabulate(10000000)(_.toInt)
+    nestedArr  = Array.tabulate(NN)(i => 
+                  Array.tabulate(NN)(j => 
+                    (i.toInt + j.toInt) % 10))
+    nestedArr3 = Array.tabulate(NNN)(i => 
+                  Array.tabulate(NNN)(j => 
+                    Array.tabulate(NNN)(k =>
+                      (i.toInt + j.toInt + k.toInt) % 10)))
 
     staged = new StagedStreamBenchmarksT { self =>
 
@@ -162,6 +184,8 @@ class S {
 
       dumpGeneratedCode = false
       
+      override val flatten : (Array[Array[Int]] => Int) = compile(self.flatten)
+      override val flatten3 : (Array[Array[Array[Int]]] => Int) = compile(self.flatten3)
       override val sum : (Array[Int] => Int) = compile(self.sum)
       override val sumOfSquares : (Array[Int] => Int) = compile(self.sumOfSquares)
       override val sumOfSquaresEven : (Array[Int] => Int) = compile(self.sumOfSquaresEven)
@@ -177,76 +201,100 @@ class S {
     }
   }
 
-  @Benchmark
-  def sum_staged () : Int = {
-    val sum : Int = staged.sum(v)
-    sum
-  }
+  // @Benchmark
+  // def sum_staged () : Int = {
+  //   val sum : Int = staged.sum(v)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def sumOfSquares_staged () : Int = {
+  //   val sum : Int = staged.sumOfSquares(v)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def sumOfSquaresEven_staged () : Int = {
+  //   val sum : Int = staged.sumOfSquaresEven(v)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def cart_staged () : Int = {
+  //   val sum : Int = staged.cart(vHi, vLo)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def maps_staged () : Int = {
+  //   val sum : Int = staged.maps(v)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def filters_staged () : Int = {
+  //   val sum : Int = staged.filters(v)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def dotProduct_staged () : Int = {
+  //   val sum : Int = staged.dotProduct(vHi, vHi)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def flatMap_after_zipWith_staged () : Int = {
+  //   val sum : Int = staged.flatMap_after_zipWith(vFaZ, vFaZ)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def zipWith_after_flatMap_staged () : Int = {
+  //   val sum : Int = staged.zipWith_after_flatMap(vZaF, vZaF)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def flatMap_take_staged () : Int = {
+  //   val sum : Int = staged.flatMap_take(v, vLo)
+  //   sum
+  // }
+  
+  // @Benchmark
+  // def zip_flat_flat_staged () : Int = {
+  //   val sum : Int = staged.zip_flat_flat(v, vLo)
+  //   sum
+  // }
+  
+  // @Benchmark
+  // def zip_filter_filter_staged () : Int = {
+  //   val sum : Int = staged.zip_filter_filter(vHi, vHi)
+  //   sum
+  // }
+
+  // @Benchmark
+  // def flatten_unstaged () : Int = {
+  //   val sum : Int = nestedArr.flatten.sum
+  //   sum
+  // }
+  
+  // @Benchmark
+  // def flatten_staged () : Int = {
+  //   val sum : Int = staged.flatten(nestedArr)
+  //   sum
+  // }
 
   @Benchmark
-  def sumOfSquares_staged () : Int = {
-    val sum : Int = staged.sumOfSquares(v)
-    sum
-  }
-
-  @Benchmark
-  def sumOfSquaresEven_staged () : Int = {
-    val sum : Int = staged.sumOfSquaresEven(v)
-    sum
-  }
-
-  @Benchmark
-  def cart_staged () : Int = {
-    val sum : Int = staged.cart(vHi, vLo)
-    sum
-  }
-
-  @Benchmark
-  def maps_staged () : Int = {
-    val sum : Int = staged.maps(v)
-    sum
-  }
-
-  @Benchmark
-  def filters_staged () : Int = {
-    val sum : Int = staged.filters(v)
-    sum
-  }
-
-  @Benchmark
-  def dotProduct_staged () : Int = {
-    val sum : Int = staged.dotProduct(vHi, vHi)
-    sum
-  }
-
-  @Benchmark
-  def flatMap_after_zipWith_staged () : Int = {
-    val sum : Int = staged.flatMap_after_zipWith(vFaZ, vFaZ)
-    sum
-  }
-
-  @Benchmark
-  def zipWith_after_flatMap_staged () : Int = {
-    val sum : Int = staged.zipWith_after_flatMap(vZaF, vZaF)
-    sum
-  }
-
-  @Benchmark
-  def flatMap_take_staged () : Int = {
-    val sum : Int = staged.flatMap_take(v, vLo)
+  def flatten3_unstaged () : Int = {
+    // val sum : Int = nestedArr3.flatten.flatten.sum
+    val sum : Int = nestedArr3.flatMap(l => l.flatMap(l2 => l2)).sum
     sum
   }
   
   @Benchmark
-  def zip_flat_flat_staged () : Int = {
-    val sum : Int = staged.zip_flat_flat(v, vLo)
+  def flatten3_staged () : Int = {
+    val sum : Int = staged.flatten3(nestedArr3)
     sum
   }
-  
-  @Benchmark
-  def zip_filter_filter_staged () : Int = {
-    val sum : Int = staged.zip_filter_filter(vHi, vHi)
-    sum
-  }
-  
 }

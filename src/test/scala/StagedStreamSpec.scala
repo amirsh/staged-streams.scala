@@ -12,7 +12,11 @@ trait StagedStreamTests extends StagedStream {
   def flattenTest (xs : Rep[Array[Array[Int]]]) : Rep[Int] =
     Stream[Array[Int]](xs)
       .flatmap(d => Stream[Int](d))
-      .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + 1))
+      .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + z))
+  def flatten3Test (xs : Rep[Array[Array[Array[Int]]]]) : Rep[Int] =
+    Stream[Array[Array[Int]]](xs)
+      .flatmap(d => Stream[Array[Int]](d).flatmap(d2 => Stream[Int](d2)))
+      .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + z))
   def sizeTest (xs : Rep[Array[Int]]) : Rep[Int] =
     Stream[Int](xs)
       .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + 1))
@@ -114,6 +118,7 @@ object StagedStreamSpec extends Properties("Staged Stream") {
     dumpGeneratedCode = false
 
     val flattenTest : (Array[Array[Int]] => Int) = compile(self.flattenTest)
+    val flatten3Test : (Array[Array[Array[Int]]] => Int) = compile(self.flatten3Test)
     val sizeTest : (Array[Int] => Int) = compile(self.sizeTest)
     val sumTest : (Array[Int] => Int) = compile(self.sumTest)
     val mapFoldTest : (Array[Int] => Int) = compile(self.mapFoldTest)
@@ -130,8 +135,14 @@ object StagedStreamSpec extends Properties("Staged Stream") {
   }
 
   property("flatten") = forAll { (xs: Array[Array[Int]]) =>
-    var x = xs.map(_.length).sum
+    var x = xs.flatten.sum
     var y = staged.flattenTest(xs)
+    x == y
+  }
+
+  property("flatten3") = forAll { (xs: Array[Array[Array[Int]]]) =>
+    var x = xs.flatten.flatten.sum
+    var y = staged.flatten3Test(xs)
     x == y
   }
 
