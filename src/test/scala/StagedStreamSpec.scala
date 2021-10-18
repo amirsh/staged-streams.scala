@@ -9,6 +9,10 @@ import scala.collection.mutable.ArrayBuffer
 import java.io.PrintWriter
 
 trait StagedStreamTests extends StagedStream {
+  def flattenTest (xs : Rep[Array[Array[Int]]]) : Rep[Int] =
+    Stream[Array[Int]](xs)
+      .flatmap(d => Stream[Int](d))
+      .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + 1))
   def sizeTest (xs : Rep[Array[Int]]) : Rep[Int] =
     Stream[Int](xs)
       .fold(0, ((a : Rep[Int])=> (z : Rep[Int]) => a + 1))
@@ -109,6 +113,7 @@ object StagedStreamSpec extends Properties("Staged Stream") {
 
     dumpGeneratedCode = false
 
+    val flattenTest : (Array[Array[Int]] => Int) = compile(self.flattenTest)
     val sizeTest : (Array[Int] => Int) = compile(self.sizeTest)
     val sumTest : (Array[Int] => Int) = compile(self.sumTest)
     val mapFoldTest : (Array[Int] => Int) = compile(self.mapFoldTest)
@@ -122,6 +127,12 @@ object StagedStreamSpec extends Properties("Staged Stream") {
     val makeLinearTest : (Array[Int] => Int) = compile(self.makeLinearTest)
     val zip_flat_flat_take : ((Array[Int], Array[Int], Int) => Int) = compile3(self.zip_flat_flat_take)
     val zip_filter_filter : ((Array[Int], Array[Int], Int) => Int) = compile3(self.zip_filter_filter)
+  }
+
+  property("flatten") = forAll { (xs: Array[Array[Int]]) =>
+    var x = xs.map(_.length).sum
+    var y = staged.flattenTest(xs)
+    x == y
   }
 
   property("size") = forAll { (xs: Array[Int]) =>
